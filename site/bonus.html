@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Step 2 · Your bonuses</title><link rel="stylesheet" href="style.css"></head><body><main>
+<div class="steps">Step 2 of 2</div>
+<h1>Your bonus materials</h1>
+<div class="lock" id="lock">The bonuses unlock once you post your review on Amazon and tap <b>I've left my review</b>.
+<a class="btn" href="review.html">Go to step 1</a><button class="btn alt" id="unlock">I've left my review</button></div>
+<div id="items">
+<div class="card"><h2>Print Doctor</h2><p>Tap what you see on a failed print: it walks you through the suspects in the book's order, then the settings to change one at a time.</p><a class="btn" href="print-doctor.html">Open Print Doctor</a></div>
+<div class="card"><h2>Practice 3D models</h2><p>First-layer squares, stringing towers, overhang and bridge tests, a support practice part, a color-change nameplate, a filament swatch card and a size-check cube. STL files with a guide that ties each one to the book.</p><a class="btn" href="bambu-practice-models.zip" download>Download the models (ZIP)</a></div>
+<div class="card"><h2>Maintenance reminders</h2><p>Add the Chapter 13 maintenance tasks for your printer to your phone's calendar with one tap.</p><a class="btn" href="reminders.html">Set my reminders</a></div>
+<div class="card"><h2>Printable sheets</h2><p>US Letter, made to print in black and white.</p>
+<a class="btn alt" href="first-print-checklist.pdf" download>First-print checklist and plate card</a>
+<a class="btn alt" href="symptom-flowchart.pdf" download>Check This First flowchart</a>
+<a class="btn alt" href="maintenance-log.pdf" download>Maintenance calendar and log</a>
+<a class="btn alt" href="settings-cheat-sheet.pdf" download>Settings cheat sheet</a>
+<a class="btn alt" href="calibration-guide.pdf" download>Calibration guide</a></div>
+</div>
+<footer>Bambu Studio for New Owners · Owen T. Garrick · Unofficial guide, not affiliated with Bambu Lab</footer>
+</main>
+<script>
+function ok(){var u=false;try{u=localStorage.getItem('gg_bambu_unlocked')==='1'}catch(e){}return u}
+function show(u){document.getElementById('items').className=u?'':'locked';document.getElementById('lock').style.display=u?'none':'block'}
+document.getElementById('unlock').onclick=function(){try{localStorage.setItem('gg_bambu_unlocked','1')}catch(e){}show(true)};
+show(ok());
+</script></body></html>

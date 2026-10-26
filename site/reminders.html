@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maintenance Reminders</title>
+<style>
+:root{--bg:#F4F1EA;--ink:#1B2A3A;--acc:#A84A12;--card:#fff;--line:#d8d2c6;--mute:#5b6570}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:26px;margin:4px 0 6px}.kick{color:var(--acc);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+p.lead{color:var(--mute);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:0 0 14px}
+.card h2{font-size:19px;margin:0 0 6px}.card ul{margin:6px 0 12px;padding-left:20px;font-size:15px}.card li{margin-bottom:4px}
+button{width:100%;min-height:52px;border:0;border-radius:10px;background:var(--acc);color:#fff;font-size:17px;font-weight:700;cursor:pointer}
+.warn{border-left:4px solid var(--ink);background:#fff;padding:12px 14px;border-radius:8px;font-size:15px;margin:0 0 18px}
+.ok{color:var(--acc);font-size:14px;margin-top:8px;min-height:1em}
+a{color:var(--ink)}footer{margin-top:24px;font-size:13px;color:var(--mute);text-align:center}
+</style></head><body><main>
+<div class="kick">Bonus · Chapter 13</div>
+<h1>Maintenance reminders</h1>
+<p class="lead">Pick your printer and tap the button. Your phone opens the reminders as a calendar file: confirm to add them. They repeat on their own, starting next Saturday.</p>
+<div class="warn"><b>Before any task:</b> switch the printer off, unplug it and let the nozzle and the bed cool fully. The book has the steps and the lubricant rules for each task.</div>
+<div id="list"></div>
+<p class="lead" style="font-size:15px">The A2L, P2S, X2D, H2S, H2C and H2D Pro have no table in the book: follow the printer's own reminders and the wear-part checks in Chapter 13.</p>
+<p style="font-size:15px"><a href="bonus.html">Back to the bonus page</a></p>
+<footer>Bambu Studio for New Owners · Owen T. Garrick · Unofficial guide, not affiliated with Bambu Lab</footer>
+</main>
+<script>
+var FAM=[
+ {id:"x1p1",name:"X1 series and P1 series",note:"P1 entries come from Bambu's P1P page; on a P1S follow the printer's own reminders first.",ev:[
+  ["WEEKLY","Blow clean the hotend, front cover and auxiliary fans","Compressed air. P1: hold the fan blades still. X1: also blow clean the extruder gear and replace it if worn. Book: Chapter 13."],
+  ["MONTHLY","Clean the X carbon rods and the Y and Z rods","X carbon rods: IPA and a dust-free cloth, never grease. Y and Z rods: IPA (P1: then a thin coat against rust). Book: Chapter 13."],
+  ["QUARTERLY","Grease the Z lead screws and protect the Y and Z rods","Lead screws: clean, then BX-300/F grease. Rods: X1 anti-rust oil on a cloth; P1 Super Lube 52004. Book: Chapter 13."]]},
+ {id:"a1",name:"A1",ev:[
+  ["WEEKLY","Check and clean the fan air ducts","Part cooling fan and hotend cooling fan. Book: Chapter 13."],
+  ["MONTHLY","Clean and oil the X and Y rails, wipe the hotend heating assembly","Oil, never grease, on the rails. Accessory-box oil or WD-40 Multi-Use Product on the Y rail. Book: Chapter 13, Oil the A1 rails."],
+  ["QUARTERLY","Grease the lead screws, lubricate the idler pulleys","Grease on the lead screws only; oil on the X and Y idlers. Book: Chapter 13."]]},
+ {id:"a1mini",name:"A1 mini",ev:[
+  ["MONTHLY","Oil the Y axis and check the belts","Bambu's A1 mini pages confirm the monthly Y-axis oiling and the belt check. Book: Chapter 13."]]},
+ {id:"h2d",name:"H2D",note:"Bambu moves the whole H2D schedule to monthly for long runs of high-temperature or engineering filaments.",ev:[
+  ["MONTHLY","Clean and oil the X-axis assembly and the left nozzle lift rail","Oil. Book: Chapter 13."],
+  ["QUARTERLY","H2D three-month maintenance","Y rods: clean, then oil. Z rods and lead screws: clean, then grease. Cameras and flame sensors: alcohol on a cloth squeezed dry. Exterior, screen, heatbed, toolhead, enclosure: 75% ethanol or 70% IPA. Fans, exhausts and carbon filter cover: brushes. Book: Chapter 13."]]}
+];
+var LABEL={WEEKLY:"Weekly",MONTHLY:"Monthly",QUARTERLY:"Every 3 months"};
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;")}
+var L=document.getElementById("list");
+FAM.forEach(function(f){var d=document.createElement("div");d.className="card";
+ d.innerHTML="<h2>"+esc(f.name)+"</h2>"+(f.note?"<p style='font-size:14px;color:#5b6570;margin:0 0 4px'>"+esc(f.note)+"</p>":"")+"<ul>"+f.ev.map(function(e){return "<li><b>"+LABEL[e[0]]+":</b> "+esc(e[1])+"</li>"}).join("")+"</ul><button>Add to my calendar</button><div class='ok'></div>";
+ d.querySelector("button").onclick=function(){dl(f,d.querySelector(".ok"))};L.appendChild(d)});
+function pad(n){return(n<10?"0":"")+n}
+function ymd(d){return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())}
+function icsText(s){return s.replace(/\\/g,"\\\\").replace(/,/g,"\\,").replace(/;/g,"\\;")}
+function fold(l){var o="";while(l.length>74){o+=l.slice(0,74)+"\r\n ";l=l.slice(74)}return o+l}
+function dl(f,ok){var t=new Date();var s=new Date(t.getFullYear(),t.getMonth(),t.getDate()+((6-t.getDay()+7)%7||7));
+ var e=new Date(s.getTime()+864e5);var stamp=new Date().toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
+ var out=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Owen T. Garrick//Bambu Studio for New Owners//EN","CALSCALE:GREGORIAN"];
+ f.ev.forEach(function(ev,i){var rr=ev[0]=="WEEKLY"?"FREQ=WEEKLY":ev[0]=="MONTHLY"?"FREQ=MONTHLY":"FREQ=MONTHLY;INTERVAL=3";
+  out.push("BEGIN:VEVENT","UID:"+f.id+"-"+i+"-"+ymd(s)+"@garrickguides.github.io","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+ymd(s),"DTEND;VALUE=DATE:"+ymd(e),"RRULE:"+rr,
+   fold("SUMMARY:"+icsText("3D printer: "+ev[1])),fold("DESCRIPTION:"+icsText("Switch off, unplug and let it cool first. "+ev[2])),
+   "BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsText("3D printer maintenance"),"TRIGGER:PT9H","END:VALARM","END:VEVENT")});
+ out.push("END:VCALENDAR");
+ var b=new Blob([out.join("\r\n")],{type:"text/calendar"});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="printer-maintenance-"+f.id+".ics";
+ document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1000);ok.textContent="Calendar file created. Open it and confirm to add the reminders."}
+</script></body></html>

@@ -1,0 +1,949 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Print Doctor</title>
+<meta name="description" content="Print Doctor: a step-by-step check for a failed print, from the book Bambu Studio for New Owners by Owen T. Garrick.">
+<script>
+/* ===================================================================
+   PRINT DOCTOR DATA
+   Every line below comes from the book "Bambu Studio for New Owners"
+   (chapters 4, 9, 10, 11, 12 and the Quick Reference). Edit here to
+   correct a fact; the page is drawn from this object only.
+   Markup: **bold** for setting names, as in the book.
+   Suspect fields:
+     name   suspect label (book's order)
+     q      the yes/no question (default: "Could the <name> cause it?")
+     look   what to look at (book's "Check" column)
+     change what to change (book's "What to change" column)
+     skip   text: the book marks this suspect as not involved
+     toSettings  true: the change is "the steps below"
+     goto   id of another symptom the book sends you to
+     info   true: the book gives a meaning, not a fix
+   =================================================================== */
+var BOOK = {
+  title: "Bambu Studio for New Owners",
+  author: "Owen T. Garrick",
+  footer: "Bambu Studio for New Owners · Owen T. Garrick · Unofficial guide, not affiliated with Bambu Lab"
+};
+
+var METHOD = {
+  ref: { ch: 9, sec: "One Symptom, One Likely Cause, One Test" },
+  knownStart: [
+    "Look at the **Process** preset name. An asterisk in front of it (\"* 0.20mm Standard @BBL A1\") means a value was changed.",
+    "If you see the asterisk and cannot say what you changed, click the reset arrow left of the preset dropdown.",
+    "If the preset is one of your own, under **User presets**, choose the matching preset under **System presets** for the test.",
+    "Check that each **Project Filaments** row names the spool that is on the printer."
+  ],
+  oneThing: "Change one thing, write it down, then print the smallest job that still shows the symptom, such as the built-in **Cube** from **Add Primitive** (right-click the plate).",
+  undo: "If a change did not help, put it back before you test the next one. Otherwise the next test carries two changes.",
+  notSure: "Check a suspect even if you \"already did.\" Try its change to find out.",
+  fixed: "Keep the change, write it down.",
+  helpRef: { ch: 9, sec: "Asking for Help: What to Send So People Can Actually Help" },
+  beforePost: "Bambu's forum asks new members to read 10 posts, visit 5 threads and spend 15 minutes on the forum before they can start a thread. Pick the right category and do not post the same question in several topics.",
+  include: [
+    "**Your printer model**, and the AMS or AMS lite if you use one.",
+    "**Your Studio version**, from the arrow next to **File** > **Help** > **About Bambu Studio**.",
+    "**The filament**: brand, type, and the preset selected in **Project Filaments**.",
+    "**The plate**, and the plate tile set in Studio.",
+    "**The settings**: the process preset name, and any value you changed.",
+    "**The project file**: **File > Save Project** (Ctrl+S), and attach the .3mf if you are free to share the model.",
+    "**Clear photos**: the failed part from the top, its underside, and a close-up of the problem area, in good light.",
+    "**What you already tried**, with the result of each change.",
+    "**Any HMS code**, copied exactly."
+  ],
+  ticket: "When it looks like a fault, Bambu's support ticket form asks for the printer's serial number, the issue type, a detailed description, the print log, and pictures or videos of the problem (Chapter 9, When It Looks Like a Fault: A Support Ticket)."
+};
+
+var SYMPTOMS = [
+  /* ---------------- Chapter 4 ---------------- */
+  {
+    id: "first-layer",
+    area: "Chapter 4",
+    title: "First layer will not stick",
+    desc: "The first lines do not hold, drag behind the nozzle, or lift in places.",
+    ref: { ch: 4, sec: "Judge a First Layer in Ten Seconds" },
+    mode: "suspects",
+    knownStart: true,
+    checkFirst: "Look twice: on screen before you send, and on the printer while the first layer goes down. On screen: click **Slice plate**, drag the layer slider down to layer 1 and press Ctrl+1 for the top view. Every part should show a solid first layer over its whole footprint.",
+    signs: [
+      ["Flat lines that touch, one even sheet", "A good first layer"],
+      ["Round strands with gaps, lines dragged behind the nozzle", "Nozzle too high; for example, the wrong plate tile on textured PEI"],
+      ["Lines that hold in some areas and lift in others", "Oil on the plate, often where fingers touched"],
+      ["Thin, rough lines with ridges between them", "Nozzle too low, or the bed leveling is off"],
+      ["Corners that rise after a few layers", "Warping"]
+    ],
+    warning: "Do not touch the nozzle or the heated bed while the printer is working. Watch the first layer from outside the print area.",
+    suspects: [
+      { name: "Plate", q: "Could the plate tile be wrong?",
+        look: "The plate tile names the plate on the bed. Round strands with gaps point here.",
+        change: "Set the plate tile to the plate on the bed.",
+        ref: { ch: 4, sec: "Tell Studio Which Plate Is on the Printer" } },
+      { name: "Plate", q: "Could the plate be oily?",
+        look: "Lines that hold in some areas and lift in others: oil on the plate, often where fingers touched.",
+        change: "Give the plate the two-minute wash.",
+        ref: { ch: 4, sec: "The Two-Minute Wash and How to Handle the Plate" } },
+      { name: "Filament", q: "Could the filament row be wrong?",
+        look: "The filament row in **Project Filaments** matches the spool on the printer.",
+        change: "Pick the filament row and preset that match the spool (Chapter 5)." },
+      { name: "Machine", q: "Could the nozzle height or leveling be off?",
+        look: "Thin, rough lines with ridges between them, on a clean plate with the right tile.",
+        change: "Check the nozzle tip (Chapter 13), then rerun the calibration: Bambu Handy > **Device** tab > your printer > **Settings** > **Calibration** > the auto bed leveling item. Leave the Z offset to the printer.",
+        ref: { ch: 4, sec: "Leave the Z Offset to the Printer" } },
+      { name: "Profile", q: "Is it a smooth PEI plate?",
+        look: "This check is for a smooth PEI plate only.",
+        change: "Raise **Initial layer height** (**Process > Quality > Layer height** group) from 0.2 to 0.25 mm, as the High Temp Plate guide suggests." }
+    ],
+    settingsTitle: "More from the book, one at a time",
+    settings: [
+      { text: "In **Send print job**, leave **Auto Bed Leveling** on **Auto** or **On**, not **Off**. Some printers offer only **On** and **Off**.",
+        ref: { ch: 4, sec: "Leave the Z Offset to the Printer" } },
+      { text: "A part that touches the plate with only a few lines will struggle to stay put: give it a brim or turn it onto a larger face (Chapter 2)." }
+    ],
+    worked: "The next first layer is flat lines that touch, forming one even sheet.",
+    after: { text: "A part that still lifts after a good first layer points past the plate.", goto: "lifts" }
+  },
+
+  /* ---------------- Chapter 10 ---------------- */
+  {
+    id: "lifts",
+    area: "Chapter 10",
+    title: "Lifts, curls or gets knocked off",
+    desc: "The first layer went down well, then the part let go, a corner peeled up, or the nozzle knocked it over.",
+    ref: { ch: 10, sec: "Lifts, Curls or Gets Knocked Off" },
+    mode: "suspects",
+    knownStart: true,
+    pre: { text: "If the first layer never sticks at all, start with the first-layer page.", goto: "first-layer" },
+    checkFirst: "The plate tile in Studio names the plate on the bed, and the plate was washed after the last time bare fingers touched it (Chapter 4).",
+    suspects: [
+      { name: "Plate", look: "Plate tile, wash, glue as the plate needs.",
+        change: "Fix the plate tile, wash the plate, glue only as the plate needs.",
+        ref: { ch: 4, sec: "Tell Studio Which Plate Is on the Printer" } },
+      { name: "Filament", look: "Spool dry; filament row matches the spool. Studio takes the bed temperature from the filament preset together with the plate tile.",
+        change: "Dry the spool (Chapter 5); pick the matching preset." },
+      { name: "Profile", look: "No brim on a small or tall part.",
+        change: "Add a brim: the settings below.", toSettings: true },
+      { name: "Model", look: "Small or narrow face on the plate.",
+        change: "Turn the part onto a larger face with **Lay on Face [F]** on the toolbar (Chapter 2)." },
+      { name: "Machine", look: "First layer too high or too low on a clean plate.",
+        change: "Rerun auto bed leveling (Chapter 4).",
+        ref: { ch: 4, sec: "Leave the Z Offset to the Printer" } }
+    ],
+    settingsTitle: "Settings to change, one at a time",
+    settings: [
+      { text: "Add a brim: on **Process > Others**, set **Brim type** to **Outer brim only**." },
+      { text: "If the brim alone is not enough, raise **Brim width**, just below **Brim type**, in small steps. It stays greyed while **Brim type** is **Auto**." },
+      { text: "Part lifts only at its corners: use **Brim Ears [E]** on the toolbar in place of the brim from steps 1 and 2 (Chapter 4)." },
+      { text: "Turn the part so a larger, flat face sits on the plate with **Lay on Face [F]** on the toolbar (Chapter 2). A tall, thin part laid on its side no longer rocks." },
+      { text: "Smooth PEI plate only: raise **Initial layer height** on **Process > Quality** from 0.2 to 0.25 mm." },
+      { text: "Tall parts: **Process > Support > Enable support**, so the part has something to lean on (Chapter 6)." }
+    ],
+    worked: "The same file prints to the last layer with every corner flat on the plate."
+  },
+  {
+    id: "strings",
+    area: "Chapter 10",
+    title: "Strings, wisps and 'cotton candy'",
+    desc: "Fine threads of plastic across the gaps between parts, or a dense web between towers.",
+    ref: { ch: 10, sec: "Strings, Wisps and 'Cotton Candy'" },
+    mode: "suspects",
+    knownStart: true,
+    checkFirst: "Is the spool dry? Stringing is first among the signs of wet filament, and a new, sealed spool can be damp (Chapter 5). Dry it, then print the same file with nothing else changed.",
+    tip: "See the travel moves before you print: click **Slice plate**, then tick **Travel** and **Retract** in the **Slicing Result** panel. Each line across a gap is a path where ooze can draw a string.",
+    suspects: [
+      { name: "Plate", skip: "Not involved in stringing." },
+      { name: "Filament", look: "Dry spool; preset matches the spool; LW-PLA.",
+        change: "Dry it (Chapter 5). For LW-PLA, **Flow ratio** 0.5-0.7 on the **Filament** tab of **Filament settings** (window **Advanced** on). Leave Bambu PLA Basic at its preset value, 0.98." },
+      { name: "Profile", look: "Nozzle temperature, travel, retraction.",
+        change: "The steps below, in order.", toSettings: true },
+      { name: "Model", look: "Many small parts far apart.",
+        change: "Move them closer together: click a part and press an arrow key (10 mm per press; Shift with an arrow key, 1 mm)." },
+      { name: "Machine", look: "Nozzle size in Studio matches the nozzle fitted.",
+        change: "Set **Diameter** under **Nozzle** in the **Printer** section to the nozzle fitted." }
+    ],
+    settingsTitle: "Settings to change, one at a time",
+    settings: [
+      { text: "Lower the nozzle temperature in small steps: **Filament settings > Filament > Print temperature**, the **Nozzle** row, **Other layers** column (220 °C in Bambu PLA Basic @BBL A1). Stay within the range on the spool label." },
+      { text: "Click a part in the 3D view and press an arrow key to move it closer to the others, so the nozzle travels less (10 mm per press; Shift with an arrow key, 1 mm)." },
+      { text: "Switch on **Advanced** in the **Process** section, then on **Process > Quality** tick **Avoid crossing wall**, near the bottom of the **Advanced** group. It is off in the preset." },
+      { text: "Raise the retraction length in small steps: in **Filament settings**, open **Setting Overrides** and tick the box in front of **Length** in the **Retraction** group. Stay at or below about 2 mm." },
+      { text: "If longer retraction did not help, set it back and raise **Retraction Speed** in the same group instead, in small steps." },
+      { text: "Owner report (PETG HF on a P2S): turning off **Z hop when retract**, in the same **Retraction** group, \"was a big win.\" Test it as one more change on its own." }
+    ],
+    worked: "Two towers a few inches apart print with clean air between them, and any wisp left brushes away with a fingertip."
+  },
+  {
+    id: "gaps",
+    area: "Chapter 10",
+    title: "Gaps, thin walls and under-extrusion",
+    desc: "Walls you can see light through, lines that do not touch, gaps on top, or a thin feature that never printed.",
+    ref: { ch: 10, sec: "Gaps, Thin Walls and Under-Extrusion" },
+    mode: "suspects",
+    knownStart: true,
+    checkFirst: "Listen at the toolhead and watch the filament. Clicking from the extruder or no flow are the signs of a clog: go to Chapter 11, Clogs: How to Tell and How to Clear Them Safely, before you change a setting.",
+    suspects: [
+      { name: "Plate", q: "Are the gaps only in the first layer?",
+        look: "The plate is not involved, unless the gaps are only in the first layer.",
+        change: "Go to the first-layer checks (Chapter 4).", goto: "first-layer" },
+      { name: "Filament", look: "Dry spool; a preset that matches the brand.",
+        change: "Dry it; for an unknown brand, choose the **Generic** preset of the same material (Chapter 5)." },
+      { name: "Profile", look: "Speed mode, flow dynamics, temperature.",
+        change: "The steps below.", toSettings: true },
+      { name: "Model", q: "Is a feature missing on screen in Preview?",
+        look: "**Slice plate**, drag the layer slider to a layer that crosses the thin feature, and look for lines inside its outline.",
+        change: "If Studio draws no lines there, no setting on the printer will add one: thicken the feature in the model.",
+        ref: { ch: 10, sec: "A Thin Wall That Never Prints" } },
+      { name: "Machine", look: "Clicking, dirty extruder gears.",
+        change: "Chapter 11 for clogs; Chapter 13 for the gears.", goto: "feed" }
+    ],
+    settingsTitle: "Settings to change, one at a time",
+    settings: [
+      { text: "While the print is running, set the speed mode back to **Standard** on the **Device** tab or the printer screen, if it was changed. For **Ludicrous**, Bambu suggests about 10 °C more nozzle temperature, or slowing down." },
+      { text: "For a spool that is not Bambu's and has no preset of its own, choose the **Generic** preset of the same material in the filament row (Chapter 5)." },
+      { text: "Run the **Flow Dynamics** calibration for this filament from the **Calibration** tab (Chapter 5). Dry first: the result is unreliable on damp filament." },
+      { text: "For a third-party filament, run the **Flow Rate** calibration as well. Bambu calls it usually unnecessary for its own filaments." },
+      { text: "Raise the nozzle temperature in small steps: **Filament settings > Filament > Print temperature**, the **Nozzle** row, **Other layers** column, inside the range on the spool label." },
+      { text: "PETG only (owners' fix): lower **Max volumetric speed** in the filament preset, in small steps (window **Advanced** on). For other filaments, leave it at its preset value." }
+    ],
+    worked: "Walls are solid when you hold the part up to a light, and corners come out square."
+  },
+  {
+    id: "spaghetti",
+    area: "Chapter 10",
+    title: "Spaghetti and prints that fail halfway",
+    desc: "A nest of loose, curly plastic, or the print stops growing at some height.",
+    ref: { ch: 10, sec: "Spaghetti and Prints That Fail Halfway" },
+    mode: "suspects",
+    knownStart: true,
+    warning: "Stop the print from the printer screen or Bambu Handy before you clear anything. Do not touch the nozzle or the heated bed while the printer is working. Let the bed cool to 35 °C or lower before you lift the plate.",
+    checkFirst: "Look at what is left on the plate: a loose part, a tangle above an overhang, or layers that stop at one height. Each points to a different suspect. If your printer has a camera, the timelapse shows the layer where it went wrong (Chapter 9).",
+    tip: "HMS 0C00-0300-0003-0008, \"Possible spaghetti defects\": the camera can raise a false alarm, for example on infill. Look at the print before you decide: let a clean print run on, stop a ruined one.",
+    suspects: [
+      { name: "Plate", q: "Did the part come loose?",
+        look: "The part lies loose, often with a nest of loops on top.",
+        change: "Go to Lifts, Curls or Gets Knocked Off.", goto: "lifts" },
+      { name: "Filament", q: "Did the flow stop?",
+        look: "Layers stop at one height with thin strands above: tangle, run-out, snapped or wet spool.",
+        change: "Change nothing in Studio: follow the filament path in Chapter 11 first; Chapter 5 for a wet spool.", goto: "feed" },
+      { name: "Profile", q: "Does the mess start above an overhang?",
+        look: "The part is still attached, with a tangle starting above an unsupported overhang.",
+        change: "Turn on support: the steps below.", toSettings: true },
+      { name: "Model", q: "Did a thin or tall part bend or break?",
+        look: "A thin or tall part that bent or broke.",
+        change: "Turn it (Chapter 6) or add a brim (Chapter 4)." },
+      { name: "Machine", q: "Is there a clean step sideways in the layers?",
+        look: "A clean step sideways in the layers.",
+        change: "Go to Shifted Layers, Waves and Ringing.", goto: "shift" }
+    ],
+    settingsTitle: "Settings to change, one at a time",
+    settings: [
+      { text: "Before slicing again, press Ctrl+L on the **Prepare** tab to show the overhangs Studio marks (Chapter 6)." },
+      { text: "If the mess started above a marked area, tick **Process > Support > Enable support** (Bambu's system presets ship with it off). Click **Slice plate**, drag the layer slider in **Preview** to the height where the print failed, and check that support sits under that area." },
+      { text: "If the part came loose, add a brim as in Chapter 10, Lifts, Curls or Gets Knocked Off." },
+      { text: "If flow stopped, change nothing in Studio: follow the filament path in Chapter 11 first." }
+    ],
+    worked: "The same file passes the height where it failed before. Stay near the printer, or watch the camera in Bambu Handy, for the first print after the change."
+  },
+  {
+    id: "warping",
+    area: "Chapter 10",
+    title: "Warping and cracked layers",
+    desc: "The corners of a flat part rise while the middle stays down; on ABS or ASA, a crack between layers.",
+    ref: { ch: 10, sec: "Warping and Cracked Layers" },
+    mode: "suspects",
+    knownStart: true,
+    checkFirst: "What material is it, and on which printer? Bambu does not recommend open-frame printers, such as the A1 mini and A1, for ABS and ASA, and recommends an enclosed printer for PC, PA and the PA-CF and PA-GF family. If that is your case, move the material to an enclosed printer before you change any setting (Chapter 8).",
+    warning: "ABS can release odors and harmful gases while it prints. Print it on an enclosed printer, in a well-ventilated room (Chapter 8).",
+    suspects: [
+      { name: "Plate", look: "Plate tile; washed plate; glue where the plate needs it.",
+        change: "Fix the plate tile, wash the plate, glue where the plate needs it (Chapter 4).",
+        ref: { ch: 4, sec: "Tell Studio Which Plate Is on the Printer" } },
+      { name: "Filament", look: "Shrink-prone material (ABS, ASA, PC, POM, PP, PA, PA-CF); preset matches the spool.",
+        change: "A low-warp material (PLA, PLA-CF, PETG, PETG-CF, PET-CF), or an enclosed printer." },
+      { name: "Profile", look: "Bed temperature, fan, infill, brim.",
+        change: "The steps below.", toSettings: true },
+      { name: "Model", look: "Long, flat, sharp-cornered parts.",
+        change: "Brim ears at the corners; turn the part." },
+      { name: "Machine", look: "Open front door or open top (ABS, ASA, PC, PA).",
+        change: "Close the door, cover the top." }
+    ],
+    settingsTitle: "Settings to change, one at a time",
+    settings: [
+      { text: "For ABS, ASA, PC or PA on an enclosed printer, close the front door before the print starts." },
+      { text: "For the same materials, cover the top of the printer." },
+      { text: "For PLA and PETG, do the opposite: remove the upper glass cover when the bed is above 45 °C for PLA-type and above 70 °C for PETG-type materials." },
+      { text: "Add a brim, then widen it: **Process > Others > Brim type**, **Outer brim only**, then **Brim width** in small steps." },
+      { text: "Raise the bed temperature in small steps, inside the range for the material and plate (Chapter 4): **Filament settings > Filament > Print temperature**, the row for your plate type (65 °C on **Textured PEI Plate** in Bambu PLA Basic @BBL A1)." },
+      { text: "Reduce the part cooling fan in small steps: **Filament settings > Cooling**, **Part cooling fan** group, **Min fan speed threshold** (60 %) and **Max fan speed threshold** (80 %)." },
+      { text: "Lower the infill: **Process > Strength > Sparse infill density** is 15 % in the A1 preset. Do not go above 50 %." },
+      { text: "Set **Sparse infill pattern** to **Gyroid**, which shrinks less." },
+      { text: "For ABS, add a raft: **Raft layers** on **Process > Support** (Advanced on), 0 in the preset." }
+    ],
+    worked: "Laid on a flat table, the cooled part sits flat with no rocking, and a sheet of paper does not slide under any corner. A wall that cracked before shows no line when you flex it gently."
+  },
+  {
+    id: "shift",
+    area: "Chapter 10",
+    title: "Shifted layers, waves and ringing",
+    desc: "From one height up the print sits off to one side, or faint waves ripple along a wall after a sharp corner.",
+    ref: { ch: 10, sec: "Shifted Layers, Waves and Ringing" },
+    mode: "suspects",
+    knownStart: true,
+    checkFirst: "Was the speed mode changed during the print, and did anything hit the print? Look at the layer where the shift starts for a curled edge or a lump of plastic.",
+    suspects: [
+      { name: "Plate", q: "Was a loose part pushed?",
+        look: "The plate is not involved, unless a loose part was pushed.",
+        change: "Go to Lifts, Curls or Gets Knocked Off.", goto: "lifts" },
+      { name: "Filament", q: "Do edges curl and catch the nozzle?",
+        look: "Edges that curl and catch the nozzle.",
+        change: "Go to Warping and Cracked Layers.", goto: "warping" },
+      { name: "Profile", look: "Speed mode; edited speeds; outer wall near 120 mm/s.",
+        change: "The steps below.", toSettings: true },
+      { name: "Model", look: "Shifts at a tall, thin part that wobbles.",
+        change: "Brim; turn the part; print it on its own." },
+      { name: "Machine", look: "Belts, pulleys, rods; a belt prompt on screen.",
+        change: "Chapter 13, then the vibration compensation (resonance) calibration from the printer's calibration menu, Studio's **Device** tab or Bambu Handy. Switch the printer off and unplug it before you touch belts, pulleys or rods." }
+    ],
+    settingsTitle: "Settings to change, one at a time",
+    settings: [
+      { text: "Leave the speed mode on **Standard** for the whole print; do not raise speed mid-print." },
+      { text: "If you edited speeds, go back to the system preset: click the reset arrow left of the process preset name." },
+      { text: "Turn on step loss recovery: on the **Device** tab, click **Print Options** and tick **Auto-recover from step loss**. Studio shows this box only when the connected printer supports the feature." },
+      { text: "For banding, check **Process > Speed > Outer wall** (Advanced on). If you lowered it, raise it back toward 200 mm/s, the A1 preset value." },
+      { text: "For ringing after sharp corners, lower **Outer wall** in small steps, or **Normal printing** under **Acceleration** (6000 mm/s² in the A1 preset). Change one of them, never both at once." }
+    ],
+    worked: "A built-in **Bambu Cube** printed with the same settings has straight edges from bottom to top, and the faces next to its corners show no repeating waves."
+  },
+  {
+    id: "tops",
+    area: "Chapter 10",
+    title: "Rough tops, saggy overhangs, messy bridges",
+    desc: "Holes or a pillowed look on a flat top, a drooping overhang, or a bridge in loose strands.",
+    ref: { ch: 10, sec: "Rough Tops, Saggy Overhangs and Messy Bridges" },
+    mode: "suspects",
+    knownStart: true,
+    checkFirst: "Press Ctrl+L on the **Prepare** tab to show the overhangs Studio marks, and look at the top layers in **Preview**. A marked area with no support under it explains a droop before any setting does.",
+    suspects: [
+      { name: "Plate", skip: "Not involved." },
+      { name: "Filament", look: "Dry spool; **Flow ratio** above 1.00.",
+        change: "Dry it; run the flow rate calibration (Chapter 5)." },
+      { name: "Profile", look: "Top shells; overhang speed; cooling; bridges.",
+        change: "The steps below.", toSettings: true },
+      { name: "Model", look: "Large overhangs facing down.",
+        change: "Turn the part (Chapter 6)." },
+      { name: "Machine", look: "**Diameter** under **Nozzle** matches the nozzle fitted.",
+        change: "Set the right size, then slice again." }
+    ],
+    settingsTitle: "Settings to change, one at a time",
+    settings: [
+      { group: "Rough or pillowed top", text: "Add one layer to **Process > Strength > Top shell layers**, which is 5 in the A1 preset, then slice and look again." },
+      { group: "Rough or pillowed top", text: "If the top heaps up or overflows, run the **Flow Rate** calibration from the **Calibration** tab (Chapter 5). Try it on other brands first." },
+      { group: "Drooping overhang", text: "Check that **Slow down for overhangs** is ticked on **Process > Speed** (Advanced on). It is on in the A1 preset." },
+      { group: "Drooping overhang", text: "Raise the part cooling fan in small steps on **Filament settings > Cooling**, **Part cooling fan** group. For PETG, start from Bambu's own PETG preset and change its fan values only in small steps (Chapter 8)." },
+      { group: "Drooping overhang", text: "If it still droops, tick **Process > Support > Enable support**, or turn the part so the overhang faces up (Chapter 6)." },
+      { group: "Sagging bridge", text: "Tick **Thick bridges** on **Process > Quality** (Advanced on). It is off in the preset. Leave **Bridge flow**, just above it, at 1." }
+    ],
+    worked: "The top feels smooth under a fingertip, with no infill pattern showing through. The overhang edge is straight, and the bridge strands are tight and touch each other."
+  },
+  {
+    id: "fit",
+    area: "Chapter 10",
+    title: "Parts do not fit: elephant foot, size errors",
+    desc: "A flared lip at the bottom, the whole part the wrong size, or a round hole that comes out oval.",
+    ref: { ch: 10, sec: "Parts That Do Not Fit: Elephant Foot and Size Errors" },
+    mode: "suspects",
+    knownStart: true,
+    checkFirst: "Measure the printed part and compare it with the **Size** Studio shows: on the **Prepare** tab, click the object and read **Size** in the object info box at the bottom right of the 3D view. Then you know whether the printer or the model is off.",
+    suspects: [
+      { name: "Plate", look: "Bed temperature far above the preset.",
+        change: "Back to the preset value (Chapter 4)." },
+      { name: "Filament", look: "**Flow ratio** above 1.00.",
+        change: "Run the flow rate calibration (Chapter 5)." },
+      { name: "Profile", look: "**Elephant foot compensation**.",
+        change: "The steps below.", toSettings: true },
+      { name: "Model", look: "The **Size** in the object info box.",
+        change: "**Scale [S]** only if the model itself is wrong.",
+        ref: { ch: 10, sec: "Measure the Part Against Studio" } },
+      { name: "Machine", look: "Oval circles; a belt prompt.",
+        change: "Chapter 13 (belt tension)." }
+    ],
+    settingsTitle: "Settings to change, one at a time",
+    settings: [
+      { text: "Switch on **Advanced** in the **Process** section. On **Process > Quality**, **Precision** group, raise **Elephant foot compensation** (0.075 mm in 0.20mm Standard @BBL A1) in small steps, and print a short test such as the built-in **Cube** or a part with a slot." },
+      { text: "If you added a brim and it no longer joins the part after slicing, lower the value again: Bambu says to disable the compensation when the brim does not connect." },
+      { text: "If the whole part is too large in every direction, run the **Flow Rate** calibration (Chapter 5) before you touch any dimension." },
+      { text: "If one model is simply drawn at the wrong size, scale it with **Scale [S]** on the toolbar and check the new **Size** in the object info box." }
+    ],
+    worked: "The bottom edge of the test part is as straight as the walls above it, and the part fits its slot or mating part without filing. Circles measure the same across both directions."
+  },
+
+  /* ---------------- Chapter 11 ---------------- */
+  {
+    id: "feed",
+    area: "Chapter 11",
+    title: "Filament will not feed",
+    desc: "The load runs, the motors whir, and the screen says the filament never arrived, or nothing comes out of the nozzle.",
+    ref: { ch: 11, sec: "Will Not Load or 'Unable to Feed': The Path, Step by Step" },
+    mode: "suspects",
+    knownStart: false,
+    warning: "The printer heats the nozzle to load and unload. Do not touch the nozzle or the heated bed while the printer is working, and keep your fingers away from the feeder while it pulls filament in.",
+    checkFirst: "Write down the message on the screen and any code, exactly as shown. Plate and model play no part in feeding, so the checks here are short.",
+    codes: [
+      ["0700-0100-0002-0002", "AMS assist motor overloaded", "Tangle; spool size; TPU or damp PVA"],
+      ["1200-1000-0002-0002", "AMS lite slot motor overloaded", "Tangle; tube length; unit close to printer"],
+      ["0700-7000-0002-0002", "AMS failed to feed the filament to the extruder", "Spool size, material, spring, tubes, sharp bends"],
+      ["0700-7000-0002-0005", "Hub sensor did not detect filament during loading", "The hub or buffer"],
+      ["0700-2000-0002-0006", "A sensor cannot always detect filament along the tube", "The tubes"],
+      ["0700-2000-0002-0001", "Slot filament has run out", "Load a spool, then **Retry**"],
+      ["0700-7000-0002-0007", "Filament ran out during printing", "Snapped or tangled filament"],
+      ["0700-7000-0002-0004", "Failed to pull the filament back", "Unloading drag; clean the hub; support shaft"],
+      ["0700-7000-0002-0003", "Printer failed to extrude the filament", "Clogs"],
+      ["1200-1200-0001-0001", "AMS lite feed gears slipping", "Filament diameter; then a fault"]
+    ],
+    codesRef: { ch: 11, sec: "AMS and AMS lite Errors, Tangles and Snapped Filament" },
+    suspects: [
+      { name: "Plate", skip: "Not involved in feeding." },
+      { name: "Filament", look: "The spool fits and turns; the material is allowed in the unit; the spool is dry.",
+        change: "Untangle or reseat the spool and dry it (Chapter 5). Chapter 5 lists which filaments each unit can take." },
+      { name: "Profile", look: "The filament preset matches the spool; the speed mode.",
+        change: "Use the filament preset of the material on the spool, so the nozzle is hot enough (Chapter 5). Printing in Sport or Ludicrous mode is among the causes of clogs.",
+        ref: { ch: 11, sec: "Clogs: How to Tell and How to Clear Them Safely" } },
+      { name: "Model", skip: "Not involved in feeding." },
+      { name: "Machine", look: "Feeder, tubes, hub, extruder, nozzle.",
+        change: "Walk the path point by point: the steps below.", toSettings: true }
+    ],
+    settingsTitle: "The path, step by step",
+    settings: [
+      { group: "Spool (point 1)", text: "Turn the spool by hand in the direction it unwinds: it turns without catching, and the loose end has not slipped under the other turns. AMS: 50-68 mm wide, 197-202 mm across, plastic or a ring on cardboard. AMS lite: 40-68 mm wide, center hole 53-58 mm. Yours to fix: untangle, reseat, add a ring." },
+      { group: "Feeder (point 2)", text: "AMS: tab pushed, end in about 2 cm. AMS lite: end lined up with the inlet. If the end jams in the AMS lite feeder, press the feeder's release button, pull the end out and insert it again lined up with the inlet." },
+      { group: "PTFE tube (point 3)", text: "Follow the tube from the unit to the toolhead, straighten any sharp bend, and press each tube end into its fitting. Keep the AMS lite close to the printer. Worn tubes are a wear part (Chapter 13)." },
+      { group: "Load again", text: "Load the filament again (Chapter 5). Watch and listen during the load, and note the point where the filament stops moving. Let the nozzle cool before you touch the toolhead." },
+      { group: "Hub or buffer (point 4)", text: "The filament passes and the hub is clean. A hub sensor that misses filament that is there is a fault." },
+      { group: "Toolhead sensor (point 5)", text: "The screen shows filament at the toolhead. A sensor that never sees filament that is there is a fault." },
+      { group: "Extruder gears (point 6)", text: "No dust or shavings; filament 1.75 mm. Worn gears are replaceable parts." },
+      { group: "Nozzle (point 7)", text: "If the filament reaches the toolhead but nothing comes out, run the extrusion test: load PLA, open **Control** on the printer's home screen, set **Nozzle Temperature** to 220 °C, push filament out and watch the tip. A smooth line means the hotend is fine; no flow means clear the clog with your model's guide. Set the nozzle back to 0 and let it cool.",
+        ref: { ch: 11, sec: "Nozzle or Extruder: The Extrusion Test" } }
+    ],
+    worked: "The load finishes and a line of plastic comes out of the nozzle.",
+    helpExtraTitle: "For a feeding fault, also give support",
+    helpExtraRef: { ch: 11, sec: "When It Is a Fault: What to Tell Support" },
+    helpExtra: [
+      "**The code**, copied exactly, with the unit and slot.",
+      "**A phone video** of the toolhead and the filament path during a load.",
+      "**Photos** of the spool in its slot, the tube route and the nozzle tip.",
+      "**The extrusion test result**: smooth line, or no flow.",
+      "**The filament**: brand, type, spool size, and when you last dried it.",
+      "**Your setup**: printer model, AMS model, firmware version (Bambu Handy, **Device Settings > Firmware Version**) and Studio version.",
+      "**What you tried**, in order, with the result of each step."
+    ]
+  },
+
+  /* ---------------- Chapter 12 ---------------- */
+  {
+    id: "send",
+    area: "Chapter 12",
+    title: "Print will not send",
+    desc: "The model is sliced and the preview looks right, but Studio answers Send with an error.",
+    ref: { ch: 12, sec: "'Failed to Send' and 'Failed to Start': The Checks in Order" },
+    mode: "path",
+    knownStart: false,
+    pathNote: "Until a print moves, the suspect is the path from the computer to the printer, not the Chapter 9 order. Work from the computer outward, fixing what each check turns up.",
+    checkFirst: "In Studio, open the **Device** tab and click the printer header at its top left (**No printer** until a printer is bound) to open the printer list. The tooltip on your printer's status icon reads **Online**, **Busy** or **Offline**.",
+    suspects: [
+      { name: "Plug-in", q: "Does the Device tab still show Install network plug-in?",
+        look: "The **Device** tab shows only the install dialog without the Bambu Network plug-in.",
+        change: "Install the plug-in first (Chapter 2, The Network Plug-In and Signing In).",
+        ref: { ch: 12, sec: "When the Plug-In Will Not Install" } },
+      { name: "Studio", q: "Is a second Studio window open?",
+        look: "Look for more than one Bambu Studio window.",
+        change: "Close any second Studio window, then try **Send** again." },
+      { name: "Account", q: "Is Studio signed in with another account?",
+        look: "Studio must be signed in with the account that owns the printer.",
+        change: "Sign in with the account that owns the printer." },
+      { name: "Region", q: "Is the Login Region wrong?",
+        look: "**Preferences** (Ctrl+P) > **General** > **Login Region** reads North America for US owners.",
+        change: "Set **Login Region** to your region. Changing it logs you out until you sign in again." },
+      { name: "Binding", q: "Is the printer no longer bound in Handy?",
+        look: "Open Bambu Handy and check that the printer is still bound there.",
+        change: "Bind it again, as in Chapter 1 or with a PIN code.",
+        ref: { ch: 12, sec: "Binding Problems and Binding With a PIN Code" } },
+      { name: "Printer", q: "Does the printer's home screen show an MQTT error?",
+        look: "Look at the printer's home screen.",
+        change: "Write down its text and code and contact Bambu support. Bambu's connection page gives no fix for one.", info: true },
+      { name: "Network", q: "Is the computer on another network, such as a guest network?",
+        look: "The computer must be on the printer's network. A guest network can hide the printer.",
+        change: "Put the computer on the printer's network." },
+      { name: "Firewall", q: "Is Bambu Studio blocked by the Windows firewall?",
+        look: "**Start**, type `firewall`, open **Firewall & network protection**, select **Allow an app through firewall**, then **Change settings**. Find **Bambu Studio**: is the check box next to it empty?",
+        change: "Select the check box next to **Bambu Studio**, select **OK**, and try **Send** again." },
+      { name: "Firewall test", q: "Does Send work with the firewall off?",
+        look: "**Start**, type `firewall`, open **Firewall & network protection** and turn the firewall off, as a short test only, as Bambu suggests. Try **Send** once more.",
+        change: "Turn the firewall back on, whatever the result.", info: true },
+      { name: "Storage", q: "Is the printer's card or drive slow, faulty or full?",
+        look: "A slow, faulty or full card or drive breaks transfers. Bambu tests write speed with `winsat disk -drive d` in Command Prompt, d being the card's drive letter.",
+        change: "Free space or replace it. To format it, copy your files off first, then format it on the printer." },
+      { name: "Ping", q: "Does ping give no reply, or long delays?",
+        look: "Open Command Prompt (**Start**, type `cmd`, Enter). Type `ping`, a space and the printer's IP address, then press Enter. The IP is in the printer's network settings.",
+        change: "No reply, or long delays, means the computer and the printer are not talking well.", info: true },
+      { name: "File transfer", q: "Does an FTP upload to the printer fail?",
+        look: "Optional. In an FTP program such as FileZilla, connect with the printer's IP as host and its **Access Code** as password, and upload any file over 1 KB.",
+        change: "Restart the printer." },
+      { name: "Owners report", q: "Do you see cloud error 3030 or 3010?",
+        look: "Forum reports, not Bambu advice. Try them after the official checks.",
+        change: "Owners report that refreshing the Windows root certificates fixed sending: in Command Prompt as administrator, run `certutil -generateSSTFromWU roots.sst`, then `certutil -addstore -f root roots.sst`. One owner got past the same errors in LAN only mode.",
+        ref: { ch: 12, sec: "What Owners Report Fixing" } }
+    ],
+    settings: [],
+    worked: "The job appears on the printer screen and the **Device** tab shows it printing.",
+    helpExtraTitle: "For a print that will not send",
+    helpExtraRef: { ch: 12, sec: "When Studio Freezes or Closes on Its Own" },
+    helpExtra: [
+      "Bambu asks for a support ticket with printer and Studio logs.",
+      "Studio's built-in network test: the small arrow next to **File** > **Help** > **Open Network Test**. It checks Bambu's servers, storage and the plug-in download, with an **Export Log** button."
+    ]
+  },
+  {
+    id: "start",
+    area: "Chapter 12",
+    title: "Sent, but will not start",
+    desc: "The file arrives but the job never begins. The printer screen usually shows a message and code.",
+    ref: { ch: 12, sec: "'Failed to Send' and 'Failed to Start': The Checks in Order" },
+    mode: "path",
+    knownStart: false,
+    pathNote: "Until a print moves, the suspect is the path, not the Chapter 9 order. Three codes point to the network or storage.",
+    checkFirst: "Write down the message and code on the printer screen.",
+    suspects: [
+      { name: "Download", q: "Is the code 0500-0400-0001-0001?",
+        look: "\"There is a problem when downloading the printing 3MF file.\" The cause is normally signal quality or bandwidth.",
+        change: "Improve the Wi-Fi signal, then resend. Bambu's A1 spec sheet lists only 2.4 GHz Wi-Fi; check your model's sheet before you blame the router." },
+      { name: "Card space", q: "Is the code 0500-0100-0003-0004?",
+        look: "\"Not enough space in the SD Card.\"",
+        change: "Delete old files on the card." },
+      { name: "Card format", q: "Is the code 0500-0100-0003-0006?",
+        look: "Listed by Bambu as an unformatted SD card.",
+        change: "Copy your files off, then format it on the printer." },
+      { name: "Other code", q: "Is it another code?",
+        look: "Every HMS message carries a QR code that opens its page on Bambu's wiki.",
+        change: "Look it up in Chapter 12, Reading HMS Messages and the Codes You Will Meet First.", info: true,
+        ref: { ch: 12, sec: "Reading HMS Messages and the Codes You Will Meet First" } }
+    ],
+    settings: [],
+    worked: "The job appears on the printer screen and the **Device** tab shows it printing.",
+    helpExtraTitle: "For a print that will not start",
+    helpExtraRef: { ch: 12, sec: "When Studio Freezes or Closes on Its Own" },
+    helpExtra: [
+      "Bambu asks for a support ticket with printer and Studio logs.",
+      "Write the code down or take a photo of the screen before you clear it: support will ask for it."
+    ]
+  }
+];
+</script>
+<style>
+:root {
+  --bg: #F4F1EA;
+  --ink: #1B2A3A;
+  --ink-2: #4A5866;
+  --accent: #A84A12;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #F3E3D7;
+  --card: #FFFFFF;
+  --line: #DED8CB;
+  --ok: #2F6B3F;
+  --ok-soft: #E3EFE5;
+  --warn-soft: #FBF1E2;
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 17px; line-height: 1.5;
+}
+.wrap { max-width: 680px; margin: 0 auto; padding: 0 16px; }
+header.top { padding: 18px 0 8px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { flex: none; }
+.brand h1 { font-size: 24px; line-height: 1.15; margin: 0; letter-spacing: -0.01em; }
+.brand .sub { font-size: 14px; color: var(--ink-2); margin: 2px 0 0; }
+.bar { display: flex; gap: 8px; margin: 14px 0 6px; min-height: 48px; }
+.bar button { flex: 0 0 auto; }
+.bar .spacer { flex: 1; }
+button { font: inherit; color: inherit; }
+.btn {
+  min-height: 48px; padding: 10px 18px; border-radius: 12px; border: 2px solid var(--ink);
+  background: transparent; cursor: pointer; font-weight: 600; font-size: 17px;
+}
+.btn:focus-visible, .card-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.btn.ghost { border-color: var(--line); background: var(--card); }
+.btn.small { min-height: 48px; padding: 8px 14px; font-size: 16px; }
+.btn[hidden] { display: none; }
+.stepper { font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 10px 0 4px; }
+h2 { font-size: 23px; line-height: 1.25; margin: 0 0 10px; }
+h3 { font-size: 18px; margin: 18px 0 8px; }
+p { margin: 0 0 10px; }
+.lead { color: var(--ink-2); }
+.grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 8px 0 20px; }
+@media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+.area-label { grid-column: 1 / -1; font-size: 14px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.06em; margin: 10px 0 0; }
+.card-btn {
+  display: block; width: 100%; text-align: left; min-height: 72px; padding: 14px 16px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  cursor: pointer; box-shadow: 0 1px 2px rgba(27,42,58,0.06);
+}
+.card-btn:hover { border-color: var(--accent); }
+.card-btn .t { display: block; font-weight: 700; font-size: 18px; line-height: 1.3; }
+.card-btn .d { display: block; color: var(--ink-2); font-size: 15px; margin-top: 4px; line-height: 1.4; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin: 10px 0; box-shadow: 0 1px 2px rgba(27,42,58,0.06); }
+.label { display: block; font-size: 13px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 4px; }
+.ctf { border-left: 5px solid var(--accent); }
+.warn { background: var(--warn-soft); border-color: #E6CFAE; }
+.okbox { background: var(--ok-soft); border-color: #BCD8C2; }
+.q { font-size: 21px; font-weight: 700; line-height: 1.3; margin: 2px 0 10px; }
+.change { font-size: 18px; }
+.ref { display: flex; gap: 8px; align-items: flex-start; font-size: 15px; color: var(--ink); background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; margin: 12px 0 0; }
+.ref svg { flex: none; margin-top: 2px; }
+.ref b { font-weight: 700; }
+.actions { display: grid; gap: 10px; margin: 14px 0 8px; }
+.actions.three { grid-template-columns: 1fr 1fr 1fr; }
+.actions.two { grid-template-columns: 1fr 1fr; }
+.actions .btn { width: 100%; padding-left: 8px; padding-right: 8px; }
+.track { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 6px; padding: 0; list-style: none; }
+.track li { font-size: 14px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink-2); }
+.track li.now { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.track li.done { text-decoration: line-through; opacity: 0.7; }
+.skipnote { font-size: 15px; color: var(--ink-2); margin: 6px 0; }
+ol.list, ul.list { margin: 4px 0 0; padding-left: 22px; }
+ol.list li, ul.list li { margin: 0 0 6px; }
+table.signs { width: 100%; border-collapse: collapse; font-size: 15px; }
+table.signs td { border-top: 1px solid var(--line); padding: 7px 6px 7px 0; vertical-align: top; }
+table.signs td:first-child { width: 50%; font-weight: 600; }
+table.log { width: 100%; border-collapse: collapse; font-size: 15px; }
+table.log th, table.log td { text-align: left; border-top: 1px solid var(--line); padding: 7px 6px 7px 0; vertical-align: top; }
+table.log th { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-2); border-top: 0; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; background: #EFEBE2; padding: 1px 5px; border-radius: 5px; word-break: break-all; }
+details { margin: 10px 0; }
+details summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; font-weight: 700; }
+.codes div { border-top: 1px solid var(--line); padding: 8px 0; font-size: 15px; }
+.codes code { font-size: 14px; }
+.link-btn { background: none; border: 0; padding: 0; min-height: 48px; color: var(--accent); font-weight: 700; text-decoration: underline; cursor: pointer; font-size: 17px; text-align: left; }
+footer { margin: 28px 0 0; padding: 18px 0 28px; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink-2); text-align: center; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (max-width: 380px) {
+  .actions.three { grid-template-columns: 1fr 1fr; }
+  .actions.three .btn:last-child { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><rect x="1" y="1" width="38" height="38" rx="10" fill="#A84A12"/><path d="M20 10v20M10 20h20" stroke="#fff" stroke-width="5" stroke-linecap="round"/></svg>
+      <div>
+        <h1>Print Doctor</h1>
+        <p class="sub">Next to a failed print? Check the suspects in the book's order.</p>
+      </div>
+    </div>
+    <div class="bar">
+      <button class="btn ghost small" id="backBtn" type="button">&larr; Back</button>
+      <span class="spacer"></span>
+      <button class="btn ghost small" id="restartBtn" type="button">Start over</button>
+    </div>
+  </header>
+  <main id="app" aria-live="polite"></main>
+  <footer id="foot"></footer>
+</div>
+<script>
+(function () {
+  "use strict";
+  var KEY = "printDoctor.v1";
+  var BOOKICON = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z M20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z" fill="none" stroke="#A84A12" stroke-width="2" stroke-linejoin="round"/></svg>';
+  var byId = {};
+  SYMPTOMS.forEach(function (s) { byId[s.id] = s; });
+
+  function esc(t) {
+    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function md(t) {
+    return esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`(.+?)`/g, "<code>$1</code>");
+  }
+  function plain(t) { return String(t).replace(/\*\*/g, "").replace(/`/g, ""); }
+  function short(t) { var p = plain(t), k = p.search(/[.:](\s|$)/); return k > 0 ? p.slice(0, k) : p; }
+  function refHtml(r) {
+    return '<div class="ref">' + BOOKICON + '<span><b>Book:</b> Chapter ' + r.ch + ', ' + esc(r.sec) + '</span></div>';
+  }
+
+  /* ---------- state ---------- */
+  var fresh = function () { return { view: "pick", sid: null, i: 0, j: 0, sure: true, settingsDone: false, log: [] }; };
+  var state = fresh();
+  var history = [];
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify({ state: state, history: history.slice(-60) })); } catch (e) {}
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (d && d.state && (d.state.view === "pick" || byId[d.state.sid])) {
+        state = d.state; history = Array.isArray(d.history) ? d.history : [];
+      }
+    } catch (e) {}
+  }
+  function go(patch) {
+    history.push(JSON.stringify(state));
+    var next = JSON.parse(JSON.stringify(state));
+    for (var k in patch) next[k] = patch[k];
+    state = next;
+    save(); render(true);
+  }
+  function back() {
+    if (!history.length) return;
+    state = JSON.parse(history.pop());
+    save(); render(true);
+  }
+  function restart() {
+    history = []; state = fresh(); save(); render(true);
+  }
+  function addLog(what, result) {
+    var l = state.log.slice(); l.push({ what: what, result: result }); return l;
+  }
+
+  /* ---------- helpers ---------- */
+  function sym() { return byId[state.sid]; }
+  function nextSuspectIndex(s, from) {
+    var i = from;
+    while (i < s.suspects.length && s.suspects[i].skip) i++;
+    return i;
+  }
+  function skippedBefore(s, i) {
+    var out = [];
+    for (var k = i - 1; k >= 0 && s.suspects[k].skip; k--) out.unshift(s.suspects[k]);
+    return out;
+  }
+  function question(su) { return su.q || ("Could the " + su.name.toLowerCase() + " cause it?"); }
+  function afterSuspect(s, i) {
+    var n = nextSuspectIndex(s, i + 1);
+    if (n >= s.suspects.length) return { view: "help" };
+    return { view: "suspect", i: n };
+  }
+  function pickSymptom(id) {
+    var s = byId[id];
+    go({ view: "start", sid: id, i: nextSuspectIndex(s, 0), j: 0, settingsDone: false, log: [] });
+  }
+
+  /* ---------- views ---------- */
+  var app = document.getElementById("app");
+
+  function viewPick() {
+    var h = '<p class="stepper">Step 1 of 3</p><h2>What do you see?</h2>' +
+      '<p class="lead">Pick the card closest to what is on your plate. If you see several problems, start with the one that happened first, lowest on the part.</p>' +
+      '<div class="grid">';
+    var lastArea = null;
+    SYMPTOMS.forEach(function (s) {
+      if (s.area !== lastArea) { h += '<p class="area-label">' + esc(s.area) + '</p>'; lastArea = s.area; }
+      h += '<button type="button" class="card-btn" data-pick="' + s.id + '"><span class="t">' + esc(s.title) + '</span><span class="d">' + esc(plain(s.desc)) + '</span></button>';
+    });
+    h += '</div>' + refHtml(METHOD.ref);
+    return h;
+  }
+
+  function trackHtml(s, cur) {
+    var h = '<ul class="track" aria-label="Order of checks">';
+    s.suspects.forEach(function (su, k) {
+      var cls = k === cur ? "now" : (k < cur ? "done" : "");
+      h += '<li class="' + cls + '">' + (k + 1) + ' ' + esc(su.name) + (su.skip ? ' (skip)' : '') + '</li>';
+    });
+    return h + '</ul>';
+  }
+
+  function viewStart() {
+    var s = sym();
+    var h = '<p class="stepper">Before you test</p><h2>' + esc(s.title) + '</h2>';
+    if (s.pre) h += '<div class="card"><p>' + md(s.pre.text) + '</p><button type="button" class="link-btn" data-goto="' + s.pre.goto + '">Open: ' + esc(byId[s.pre.goto].title) + '</button></div>';
+    if (s.warning) h += '<div class="card warn"><span class="label">Warning</span>' + md(s.warning) + '</div>';
+    h += '<div class="card ctf"><span class="label">Check this first</span>' + md(s.checkFirst) + '</div>';
+    if (s.signs) {
+      h += '<div class="card"><span class="label">What the first layer tells you</span><table class="signs">';
+      s.signs.forEach(function (r) { h += '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; });
+      h += '</table></div>';
+    }
+    if (s.codes) {
+      h += '<details class="card"><summary>Have a code on the screen?</summary><div class="codes">';
+      s.codes.forEach(function (c) { h += '<div><code>' + esc(c[0]) + '</code><br>' + esc(c[1]) + '. <b>Check first:</b> ' + md(c[2]) + '</div>'; });
+      h += '</div><p class="skipnote">The code on your printer can differ by model: search your exact code on Bambu\'s wiki or scan the QR code shown with the message.</p>' + refHtml(s.codesRef) + '</details>';
+    }
+    if (s.pathNote) h += '<div class="card"><span class="label">The order here</span>' + md(s.pathNote) + '</div>';
+    if (s.knownStart) {
+      h += '<div class="card"><span class="label">Go back to a known starting point</span><ol class="list">';
+      METHOD.knownStart.forEach(function (t) { h += '<li>' + md(t) + '</li>'; });
+      h += '</ol><p style="margin-top:10px">' + md(METHOD.oneThing) + '</p>' + refHtml(METHOD.ref) + '</div>';
+    }
+    if (s.tip) h += '<div class="card"><span class="label">Tip from the book</span>' + md(s.tip) + '</div>';
+    h += refHtml(s.ref);
+    h += '<div class="actions"><button type="button" class="btn primary" data-act="begin">' + (s.mode === "path" ? "Start the checks" : "Check the suspects in order") + '</button></div>';
+    return h;
+  }
+
+  function viewSuspect() {
+    var s = sym(), su = s.suspects[state.i];
+    var n = s.suspects.length;
+    var h = '<p class="stepper">Step 2 of 3 &middot; ' + (s.mode === "path" ? "Check " : "Suspect ") + (state.i + 1) + ' of ' + n + '</p>';
+    h += '<h2>' + esc(s.title) + '</h2>' + trackHtml(s, state.i);
+    skippedBefore(s, state.i).forEach(function (sk) {
+      h += '<p class="skipnote">Skipped: <b>' + esc(sk.name) + '</b>. ' + esc(sk.skip) + ' The book skips it too.</p>';
+    });
+    h += '<div class="card"><span class="label">' + esc(su.name) + '</span><p class="q">' + esc(question(su)) + '</p>' +
+      '<span class="label" style="margin-top:10px">What to look at</span><p>' + md(su.look) + '</p>' +
+      refHtml(su.ref || s.ref) + '</div>';
+    h += '<div class="actions three">' +
+      '<button type="button" class="btn primary" data-ans="yes">Yes</button>' +
+      '<button type="button" class="btn" data-ans="no">No</button>' +
+      '<button type="button" class="btn" data-ans="unsure">Not sure</button></div>';
+    return h;
+  }
+
+  function viewFound() {
+    var s = sym(), su = s.suspects[state.i];
+    var h = '<p class="stepper">Step 3 of 3 &middot; ' + esc(su.name) + '</p>';
+    h += '<h2>' + (state.sure ? (s.mode === "path" ? 'Found it: ' : 'Found a suspect: ') : 'Try it to find out: ') + esc(su.name.toLowerCase()) + '</h2>';
+    if (!state.sure) h += '<p class="skipnote">' + md(METHOD.notSure) + '</p>';
+    h += '<div class="card ctf"><span class="label">' + (su.info ? 'What it means' : 'What to change') + '</span><p class="change">' + md(su.change) + '</p>';
+    if (su.goto) h += '<button type="button" class="link-btn" data-goto="' + su.goto + '">Open: ' + esc(byId[su.goto].title) + '</button>';
+    h += refHtml(su.ref || s.ref) + '</div>';
+    if (su.toSettings && s.settings.length) {
+      h += '<div class="actions"><button type="button" class="btn primary" data-act="toSettings">Show the settings, one at a time</button></div>';
+    } else if (su.info) {
+      h += '<div class="actions two"><button type="button" class="btn primary" data-act="nextSuspect">Next check</button>' +
+        '<button type="button" class="btn" data-act="help">Ask for help</button></div>';
+    } else {
+      h += '<p class="q" style="margin-top:16px">Did it fix it?</p><div class="actions two">' +
+        '<button type="button" class="btn ok" data-fix="yes">Yes, fixed</button>' +
+        '<button type="button" class="btn" data-fix="no">No</button></div>' +
+        (s.mode === "path" ? '' : '<p class="skipnote">' + md(METHOD.oneThing) + '</p>');
+    }
+    return h;
+  }
+
+  function viewSetting() {
+    var s = sym(), st = s.settings[state.j], n = s.settings.length;
+    var h = '<p class="stepper">Step 3 of 3 &middot; ' + esc(s.settingsTitle) + '</p>';
+    h += '<h2>' + esc(s.title) + '</h2>';
+    h += '<div class="card ctf"><span class="label">' + (st.group ? esc(st.group) + ' &middot; ' : '') + (state.j + 1) + ' of ' + n + '</span><p class="change">' + md(st.text) + '</p>' +
+      refHtml(st.ref || s.ref) + '</div>';
+    h += '<p class="q" style="margin-top:16px">Did it fix it?</p><div class="actions three">' +
+      '<button type="button" class="btn ok" data-set="yes">Yes, fixed</button>' +
+      '<button type="button" class="btn" data-set="no">No, next</button>' +
+      '<button type="button" class="btn" data-set="na">Does not apply</button></div>';
+    h += '<p class="skipnote">' + md(METHOD.undo) + '</p>';
+    return h;
+  }
+
+  function logHtml() {
+    if (!state.log.length) return '';
+    var h = '<table class="log"><tr><th>Try</th><th>What I changed</th><th>Result</th></tr>';
+    state.log.forEach(function (l, k) { h += '<tr><td>' + (k + 1) + '</td><td>' + esc(l.what) + '</td><td>' + esc(l.result) + '</td></tr>'; });
+    return h + '</table>';
+  }
+
+  function viewFixed() {
+    var s = sym();
+    var h = '<p class="stepper">Done</p><h2>Fixed</h2>';
+    h += '<div class="card okbox"><span class="label">' + esc(METHOD.fixed) + '</span><p>Keep a short record by the printer: what you changed, the test print, and the result.</p>' + logHtml() + '</div>';
+    h += '<div class="card"><span class="label">How you know it worked</span><p>' + md(s.worked) + '</p>' + refHtml(s.ref) + '</div>';
+    if (s.after) h += '<div class="card"><p>' + md(s.after.text) + '</p><button type="button" class="link-btn" data-goto="' + s.after.goto + '">Open: ' + esc(byId[s.after.goto].title) + '</button></div>';
+    h += '<div class="actions"><button type="button" class="btn primary" data-act="restart">Check another print</button></div>';
+    return h;
+  }
+
+  function viewHelp() {
+    var s = sym();
+    var h = '<p class="stepper">Still failing</p><h2>Ask for help</h2>';
+    h += '<p class="lead">A post that answers the basic questions up front gets faster, kinder help. Test the replies you get like your own ideas: one change at a time, in suspect order.</p>';
+    h += '<div class="card"><span class="label">What to include</span><ol class="list">';
+    METHOD.include.forEach(function (t) { h += '<li>' + md(t) + '</li>'; });
+    h += '</ol>' + refHtml(METHOD.helpRef) + '</div>';
+    if (state.log.length) h += '<div class="card"><span class="label">What you tried here</span>' + logHtml() + '</div>';
+    if (s.helpExtra) {
+      h += '<div class="card"><span class="label">' + esc(s.helpExtraTitle) + '</span><ul class="list">';
+      s.helpExtra.forEach(function (t) { h += '<li>' + md(t) + '</li>'; });
+      h += '</ul>' + refHtml(s.helpExtraRef) + '</div>';
+    }
+    h += '<div class="card"><span class="label">Before you post</span><p>' + md(METHOD.beforePost) + '</p></div>';
+    h += '<div class="card"><span class="label">When it looks like a fault</span><p>' + md(METHOD.ticket) + '</p></div>';
+    h += '<div class="actions"><button type="button" class="btn primary" data-act="restart">Start over</button></div>';
+    return h;
+  }
+
+  function render(focus) {
+    var v = state.view, h;
+    if (v !== "pick" && !sym()) { state = fresh(); v = "pick"; }
+    if (v === "pick") h = viewPick();
+    else if (v === "start") h = viewStart();
+    else if (v === "suspect") h = viewSuspect();
+    else if (v === "found") h = viewFound();
+    else if (v === "setting") h = viewSetting();
+    else if (v === "fixed") h = viewFixed();
+    else h = viewHelp();
+    app.innerHTML = h;
+    document.getElementById("backBtn").hidden = !history.length;
+    document.getElementById("restartBtn").hidden = (v === "pick");
+    if (focus) {
+      window.scrollTo(0, 0);
+      var t = app.querySelector("h2"); if (t) { t.setAttribute("tabindex", "-1"); t.focus({ preventScroll: true }); }
+    }
+  }
+
+  /* ---------- events ---------- */
+  app.addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    var s = sym();
+    if (b.dataset.pick) return pickSymptom(b.dataset.pick);
+    if (b.dataset.goto) return pickSymptom(b.dataset.goto);
+    var act = b.dataset.act;
+    if (act === "begin") return go({ view: "suspect", i: nextSuspectIndex(s, 0) });
+    if (act === "restart") return restart();
+    if (act === "help") return go({ view: "help" });
+    if (act === "nextSuspect") return go(afterSuspect(s, state.i));
+    if (act === "toSettings") {
+      if (state.settingsDone) return go(afterSuspect(s, state.i));
+      return go({ view: "setting", j: 0, log: state.log });
+    }
+    if (b.dataset.ans) {
+      var a = b.dataset.ans;
+      if (a === "no") return go(afterSuspect(s, state.i));
+      return go({ view: "found", sure: a === "yes" });
+    }
+    if (b.dataset.fix) {
+      var su = s.suspects[state.i];
+      var what = su.name + ": " + short(su.change);
+      if (b.dataset.fix === "yes") return go({ view: "fixed", log: addLog(what, "Fixed") });
+      var lg = addLog(what, "Not fixed, undone");
+      if (s.settings.length && !state.settingsDone) return go({ view: "setting", j: 0, log: lg });
+      var nx = afterSuspect(s, state.i); nx.log = lg; return go(nx);
+    }
+    if (b.dataset.set) {
+      var st = s.settings[state.j];
+      var w = (st.group ? st.group + ": " : "") + short(st.text);
+      if (b.dataset.set === "yes") return go({ view: "fixed", log: addLog(w, "Fixed") });
+      var l2 = b.dataset.set === "no" ? addLog(w, "Not fixed, undone") : state.log;
+      if (state.j + 1 < s.settings.length) return go({ view: "setting", j: state.j + 1, log: l2 });
+      var nx2 = afterSuspect(s, state.i); nx2.log = l2; nx2.settingsDone = true; return go(nx2);
+    }
+  });
+  document.getElementById("backBtn").addEventListener("click", back);
+  document.getElementById("restartBtn").addEventListener("click", restart);
+  document.getElementById("foot").textContent = BOOK.footer;
+
+  load();
+  render(false);
+})();
+</script>
+</body>
+</html>
